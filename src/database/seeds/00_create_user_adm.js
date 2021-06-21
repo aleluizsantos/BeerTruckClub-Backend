@@ -12,8 +12,7 @@ exports.seed = async function (knex) {
 
   await knex("deliveryType").insert([
     { description: "Delivery" },
-    { description: "Retirar loja" },
-    { description: "Agendado" },
+    { description: "Retirada" },
   ]);
 
   await knex("operation").insert([{ open_close: false }]);

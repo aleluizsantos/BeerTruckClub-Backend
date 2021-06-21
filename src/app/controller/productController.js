@@ -11,11 +11,6 @@ const router = express.Router();
 const upload = multer(uploadConfig);
 
 const format = require("../utils/format");
-/**
- * Middleware interceptador verificar autenticidade do usuário
- * logado no sistema
- */
-router.use(authMiddleware);
 
 /**
  * Listar todos os produtos, pela categoria
@@ -91,8 +86,14 @@ router.get("/", async (req, res) => {
 
   const categorys = category_id.split(",").map((cat) => Number(cat.trim()));
 
-  const user = await connection("users").where("id", "=", userId).first();
-  const isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  let isAdmin;
+
+  if (typeof userId === "undefined") {
+    isAdmin = [true];
+  } else {
+    const user = await connection("users").where("id", "=", userId).first();
+    isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  }
 
   const products = await connection("product")
     .whereIn("visibleApp", isAdmin)
@@ -209,9 +210,14 @@ router.get("/all/:search", async (req, res) => {
  */
 router.get("/promotion", async (req, res) => {
   const userId = req.userId;
+  let isAdmin;
 
-  const user = await connection("users").where("id", "=", userId).first();
-  const isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  if (typeof userId === "undefined") {
+    isAdmin = [true];
+  } else {
+    const user = await connection("users").where("id", "=", userId).first();
+    isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  }
 
   const products = await connection("product")
     .whereIn("visibleApp", isAdmin)
@@ -250,6 +256,8 @@ router.get("/:id", async (req, res) => {
   });
   return res.json(serialezeProduct);
 });
+
+router.use(authMiddleware);
 
 /**
  * Criar um Produto

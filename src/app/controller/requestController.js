@@ -135,6 +135,7 @@ router.get("/group", async (req, res) => {
 // Criar um pedido
 // http://dominio/request
 router.post("/create", async (req, res) => {
+  const dataCurrent = new Date();
   const user_id = req.userId; //Id do usuário recebido no token;
 
   // Dados recebidos na requisição no body
@@ -151,9 +152,9 @@ router.post("/create", async (req, res) => {
     uf,
     PointReferences,
     scheduleDateTime,
-    items, //recebendo um ARRAY de objetos de items do pedido e addicionais
     cash, //Troco
     timeDelivery,
+    items, //recebendo um ARRAY de objetos de items do pedido e addicionais
   } = req.body;
 
   // Iniciado o desconto com zero, alterado se o cliente passou um cupom valido com desconto
@@ -203,7 +204,6 @@ router.post("/create", async (req, res) => {
       const additional = item.additionItem.split(",");
       return additional;
     });
-
     // converter a String do additional em apenas um array
     const listIdAdditional = itemsAdditional
       .toString()
@@ -220,7 +220,7 @@ router.post("/create", async (req, res) => {
 
     // montar os dados do pedido para ser inseridos
     const request = {
-      dateTimeOrder: new Date(),
+      dateTimeOrder: dataCurrent,
       totalPurchase: vTaxaDelivery + totalPur - totalPur * discount,
       vTaxaDelivery: vTaxaDelivery,
       coupon,
@@ -259,26 +259,26 @@ router.post("/create", async (req, res) => {
     //Inserir os items do pedido retornando todos os id dos items
     const idItemsInsert = await trx("itemsRequets").insert(itemsRequest, "id");
 
-    // Criar um array vazio para ser inserido os itens adicionais para serem inseridos
-    let insertItemAddicional = [];
+    // // Criar um array vazio para ser inserido os itens adicionais para serem inseridos
+    // let insertItemAddicional = [];
 
-    // Para cada itens inserido, inserir o addicionais no banco
-    idItemsInsert.map((item, idx) => {
-      for (let i = idx; i <= idx; i++) {
-        const element = itemsAdditional[i];
-        element.forEach((itemAddit) => {
-          if (itemAddit !== "") {
-            insertItemAddicional.push({
-              itemOrder_id: item,
-              additional_id: itemAddit,
-            });
-          }
-        });
-      }
-    });
+    // // Para cada itens inserido, inserir o addicionais no banco
+    // idItemsInsert.map((item, idx) => {
+    //   for (let i = idx; i <= idx; i++) {
+    //     const element = itemsAdditional[i];
+    //     element.forEach((itemAddit) => {
+    //       if (itemAddit !== "") {
+    //         insertItemAddicional.push({
+    //           itemOrder_id: item,
+    //           additional_id: itemAddit,
+    //         });
+    //       }
+    //     });
+    //   }
+    // });
 
-    // Inserir os items dos adicionais
-    await trx("additionalItemOrder").insert(insertItemAddicional);
+    // // Inserir os items dos adicionais
+    // await trx("additionalItemOrder").insert(insertItemAddicional);
 
     // Efetivar a gravação se tudo ocorrer com sucesso na inserção do pedido e
     // dos itens casos contrário desfaça tudo

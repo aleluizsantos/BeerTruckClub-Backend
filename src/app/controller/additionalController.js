@@ -5,8 +5,6 @@ const Yup = require("yup");
 
 const router = express.Router();
 
-router.use(authMiddleware);
-
 router.get("/", async (req, res) => {
   try {
     const additional = await connection("additional")
@@ -17,6 +15,8 @@ router.get("/", async (req, res) => {
     return res.json({ error: error.message });
   }
 });
+
+router.use(authMiddleware);
 
 router.post("/create", async (req, res) => {
   const { description, price } = req.body;

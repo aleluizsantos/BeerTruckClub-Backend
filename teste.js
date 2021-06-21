@@ -1,0 +1,16 @@
+id, dateTimeOrder;
+totalPurchase;
+cash;
+vTaxaDelivery;
+coupon;
+discount;
+note;
+timeDelivery;
+address;
+number;
+neighborhood;
+city;
+uf;
+PointReferences;
+scheduleDateTime;
+user_id, deliveryType_id, statusRequest_id, payment_id;

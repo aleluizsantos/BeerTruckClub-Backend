@@ -7,8 +7,6 @@ const upload = require("../../config/upload");
 const connection = require("../../database/connection");
 const router = express.Router();
 
-router.use(authMiddleware);
-
 // Listar todas as categorias dos produtos
 // http://dominio/category
 router.get("/", async (req, res) => {
@@ -21,7 +19,7 @@ router.get("/", async (req, res) => {
       id: cat.id,
       name: cat.name,
       image_url: `${process.env.HOST}/uploads/${cat.image}`,
-    };  
+    };
   });
 
   return res.json(serialezeCategory);
@@ -40,6 +38,8 @@ router.get("/:id", async (req, res) => {
   });
   return res.json(serialezecategory);
 });
+
+router.use(authMiddleware);
 // Criar uma categoria
 // http://dominio/category/create
 router.post("/create", upload.single("image"), async (req, res) => {

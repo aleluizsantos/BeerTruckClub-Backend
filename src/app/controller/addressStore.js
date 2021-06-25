@@ -4,18 +4,14 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-router.use(authMiddleware);
-// Listar todos os endereços de um usuário
-// http://dominio/address
+// Listar enderço da loja
+// http://dominio/addressStore
 router.get("/", async (req, res) => {
-  const user_id = req.userId;
-  // Verificação se o user_id foi passado
-  if (!user_id) return res.json({ message: "Erro falta de identificação" });
-
-  const addr = await connection("addressStore").select("*").first();
-
+  const addr = await connection("addressStore").select("*");
   return res.json(addr);
 });
+
+router.use(authMiddleware);
 // Listar criar um endereço de usuário
 // http://dominio/address
 router.post("/create", async (req, res) => {

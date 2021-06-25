@@ -4,8 +4,6 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-router.use(authMiddleware);
-
 // Listar todas tipos de pagamentos ativos
 // http://dominio/payment
 router.get("/", async (req, res) => {
@@ -27,6 +25,8 @@ router.get("/:id", async (req, res) => {
   const payment = await connection("payment").where("id", "=", id).select("*");
   return res.json(payment);
 });
+
+router.use(authMiddleware);
 // Criar um tipo de pagamento
 // http://dominio/payment/create
 router.post("/create", async (req, res) => {

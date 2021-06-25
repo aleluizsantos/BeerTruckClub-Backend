@@ -34,8 +34,14 @@ router.get("/all", async (req, res) => {
     );
   }
 
-  const user = await connection("users").where("id", "=", userId).first();
-  const isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  let isAdmin;
+
+  if (typeof userId === "undefined") {
+    isAdmin = [true];
+  } else {
+    const user = await connection("users").where("id", "=", userId).first();
+    isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  }
 
   const products = await connection("product")
     .whereIn("visibleApp", isAdmin) //Exibir os produto visivel e não visible do app
@@ -166,8 +172,14 @@ router.get("/all/:search", async (req, res) => {
   const skip = (page - 1) * limit;
   let totalProducts = 0;
 
-  const user = await connection("users").where("id", "=", userId).first();
-  const isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  let isAdmin;
+
+  if (typeof userId === "undefined") {
+    isAdmin = [true];
+  } else {
+    const user = await connection("users").where("id", "=", userId).first();
+    isAdmin = user.typeUser === "admin" ? [true, false] : [true];
+  }
 
   const products = await connection("product")
     .whereIn("visibleApp", isAdmin)

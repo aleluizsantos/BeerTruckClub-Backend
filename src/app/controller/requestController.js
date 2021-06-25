@@ -151,7 +151,6 @@ router.post("/create", async (req, res) => {
     city,
     uf,
     PointReferences,
-    scheduleDateTime,
     cash, //Troco
     timeDelivery,
     items, //recebendo um ARRAY de objetos de items do pedido e addicionais
@@ -232,7 +231,6 @@ router.post("/create", async (req, res) => {
       city,
       uf,
       PointReferences,
-      scheduleDateTime: !!scheduleDateTime ? scheduleDateTime : null,
       user_id: Number(user_id),
       deliveryType_id: Number(deliveryType_id),
       statusRequest_id: Number(statusRequest_id),
@@ -260,25 +258,26 @@ router.post("/create", async (req, res) => {
     const idItemsInsert = await trx("itemsRequets").insert(itemsRequest, "id");
 
     // // Criar um array vazio para ser inserido os itens adicionais para serem inseridos
-    // let insertItemAddicional = [];
+    let insertItemAddicional = [];
 
-    // // Para cada itens inserido, inserir o addicionais no banco
-    // idItemsInsert.map((item, idx) => {
-    //   for (let i = idx; i <= idx; i++) {
-    //     const element = itemsAdditional[i];
-    //     element.forEach((itemAddit) => {
-    //       if (itemAddit !== "") {
-    //         insertItemAddicional.push({
-    //           itemOrder_id: item,
-    //           additional_id: itemAddit,
-    //         });
-    //       }
-    //     });
-    //   }
-    // });
+    // Para cada itens inserido, inserir o addicionais no banco
+    idItemsInsert.map((item, idx) => {
+      for (let i = idx; i <= idx; i++) {
+        const element = itemsAdditional[i];
+        element.forEach((itemAddit) => {
+          if (itemAddit !== "") {
+            insertItemAddicional.push({
+              itemOrder_id: item,
+              additional_id: itemAddit,
+              request_id: Number(request_id),
+            });
+          }
+        });
+      }
+    });
 
-    // // Inserir os items dos adicionais
-    // await trx("additionalItemOrder").insert(insertItemAddicional);
+    // Inserir os items dos adicionais
+    await trx("additionalItemOrder").insert(insertItemAddicional);
 
     // Efetivar a gravação se tudo ocorrer com sucesso na inserção do pedido e
     // dos itens casos contrário desfaça tudo

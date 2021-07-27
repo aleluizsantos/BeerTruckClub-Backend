@@ -1,17 +1,17 @@
 exports.seed = async function (knex) {
   await knex("payment").insert([
-    { type: "Dinheiro", active: 1 },
-    { type: "Cartão de Crédito", active: 1 },
-    { type: "Cartão de Débito", active: 1 },
-    { type: "Cartão SODEX", active: 1 },
-    { type: "Cartão VR", active: 0 },
-    { type: "Cheque", active: 0 },
+    { type: "Dinheiro", active: 1, image: "icoCast.png" },
+    { type: "Visa", active: 1, image: "icoVisa.png" },
+    { type: "Master Card", active: 1, image: "icoMast.png" },
+    { type: "Elo", active: 1, image: "icoElo.png" },
+    { type: "Diners", active: 1, image: "icoDiners.png" },
+    { type: "American Express", active: 1, image: "icoAEx.png" },
   ]);
 
   await knex("category").insert([
-    { name: "Lanches", image: "1.jpg", categoryVisible: true },
-    { name: "Bebidas", image: "2.jpg", categoryVisible: true },
-    { name: "Pasteis", image: "3.jpg", categoryVisible: true },
-    { name: "Porções", image: "4.jpg", categoryVisible: true },
+    { name: "Smash", image: "c1.jpg", categoryVisible: true },
+    { name: "Hambúrgueres", image: "c2.jpg", categoryVisible: true },
+    { name: "Porções", image: "c3.jpg", categoryVisible: true },
+    { name: "Bebidas", image: "c4.jpg", categoryVisible: true },
   ]);
 };

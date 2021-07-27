@@ -81,5 +81,13 @@ router.delete("/delete/:id", async (req, res) => {
     return res.json({ error: "Você não tem permissão para excluir." });
   }
 });
+// Editar endereço do Estabelecimento
+router.put("/edit/:id", async (req, res) => {
+  const { id } = req.params;
+  const dataAddr = ({ address, cep, city, neighborhood, number } = req.body);
+  // Atualizar os dados
+  await connection("addressStore").where("id", "=", id).update(dataAddr);
 
+  return res.json(dataAddr);
+});
 module.exports = (app) => app.use("/addressStore", router);

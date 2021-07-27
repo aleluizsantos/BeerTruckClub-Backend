@@ -1,16 +1,16 @@
 exports.seed = async function (knex) {
-    await knex("addressStore").insert([
-        {
-            cep: "15707-170",
-            address: "Rua Jorge Amado",
-            number: "177",
-            neighborhood: "Jd. Arapuã",
-            city: "Jales",
-            uf: "SP",
-            phone: '1736322702',
-            latitude: '-20.254520',
-            longitude: '-50.550585',
-            active: true
-        }        
-    ]);
-}
+  await knex("addressStore").insert([
+    {
+      cep: "15700-030",
+      address: "Rua 11",
+      number: "2068",
+      neighborhood: "Centro",
+      city: "Jales",
+      uf: "SP",
+      phone: "17996197628",
+      latitude: "-20.2719212",
+      longitude: "-50.5448145",
+      active: true,
+    },
+  ]);
+};

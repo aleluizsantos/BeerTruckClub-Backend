@@ -7,11 +7,13 @@ const Yup = require("yup");
 const uploadConfig = require("../../config/upload");
 const connection = require("../../database/connection");
 const authMiddleware = require("../middleware/auth");
+const headersAuth = require("../middleware/headersAuth");
 const router = express.Router();
 const upload = multer(uploadConfig);
 
 const format = require("../utils/format");
 
+router.use(headersAuth);
 /**
  * Listar todos os produtos, pela categoria
  * http://dominio/product
@@ -36,7 +38,7 @@ router.get("/all", async (req, res) => {
 
   let isAdmin;
 
-  if (typeof userId === "undefined") {
+  if (userId === null) {
     isAdmin = [true];
   } else {
     const user = await connection("users").where("id", "=", userId).first();
@@ -94,7 +96,7 @@ router.get("/", async (req, res) => {
 
   let isAdmin;
 
-  if (typeof userId === "undefined") {
+  if (userId === null) {
     isAdmin = [true];
   } else {
     const user = await connection("users").where("id", "=", userId).first();
@@ -138,12 +140,18 @@ router.get("/group", async (req, res) => {
       .count("category_id as TotalProduct")
       .groupBy(
         "category_id",
+        "category.id",
         "category.name",
         "category.image",
         "category.categoryVisible"
       )
       .rightJoin("category", "product.category_id", "category.id")
-      .select("category.name", "category.image", "category.categoryVisible")
+      .select(
+        "category.id as categoryId",
+        "category.name",
+        "category.image",
+        "category.categoryVisible"
+      )
       .orderBy("category.name", "asc");
 
     const serialezeProduct = product.map((prod) => {
@@ -174,7 +182,7 @@ router.get("/all/:search", async (req, res) => {
 
   let isAdmin;
 
-  if (typeof userId === "undefined") {
+  if (userId === null) {
     isAdmin = [true];
   } else {
     const user = await connection("users").where("id", "=", userId).first();
@@ -224,7 +232,7 @@ router.get("/promotion", async (req, res) => {
   const userId = req.userId;
   let isAdmin;
 
-  if (typeof userId === "undefined") {
+  if (userId === null) {
     isAdmin = [true];
   } else {
     const user = await connection("users").where("id", "=", userId).first();
@@ -282,7 +290,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
   if (!!requestImage) {
     nameImage = requestImage.filename;
   } else {
-    nameImage = "default.png";
+    nameImage = "default.jpg";
   }
 
   const pathFile = !!nameImage
@@ -299,6 +307,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
     category_id,
     measureUnid_id,
     visibleApp,
+    additional,
   } = req.body;
 
   const schema = Yup.object().shape({
@@ -321,10 +330,12 @@ router.post("/create", upload.single("image"), async (req, res) => {
     image: nameImage,
     promotion: format.isboolean(promotion),
     pricePromotion: format.isboolean(promotion) ? Number(pricePromotion) : 0,
+    additional,
     category_id: Number(category_id),
     measureUnid_id: Number(measureUnid_id),
     visibleApp: format.isboolean(visibleApp),
   };
+
   schema.validateSync(product, { abortEarly: false });
 
   try {
@@ -335,14 +346,14 @@ router.post("/create", upload.single("image"), async (req, res) => {
     await trx.commit();
 
     // Emimitr sinal de atualização no banco novo produto
-    req.io.emit("Update", { update: product });
+    req.io.emit("Update", { update: Date.now() });
 
     return res.json({ success: true, product });
   } catch (error) {
     // Exluir o arquivo
     if (fs.existsSync(pathFile)) {
-      // Excluir somente se o arquivo não foi "default.png"
-      nameImage !== "default.png" && fs.unlinkSync(pathFile);
+      // Excluir somente se o arquivo não foi "default.jpg"
+      nameImage !== "default.jpg" && fs.unlinkSync(pathFile);
     }
   }
 });
@@ -371,12 +382,12 @@ router.delete("/:id", async (req, res) => {
     );
 
     if (fs.existsSync(pathFile)) {
-      product.image !== "default.png" && fs.unlinkSync(pathFile);
+      product.image !== "default.jpg" && fs.unlinkSync(pathFile);
     }
 
-    const productBD = await connection("product").where("id", id).delete();
+    const productBD = await connection("product").where("id", "=", id).delete();
 
-    req.io.emit("Update", { update: productBD });
+    req.io.emit("Update", { update: Date.now() });
 
     return res.json({ message: productBD ? "Excluído com sucesso" : "Erro" });
   } catch (error) {
@@ -401,6 +412,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
     category_id,
     measureUnid_id,
     visibleApp,
+    additional,
   } = req.body;
 
   const requestImage = req.file;
@@ -439,12 +451,13 @@ router.put("/:id", upload.single("image"), async (req, res) => {
       pricePromotion: format.isboolean(promotion) ? Number(pricePromotion) : 0,
       category_id: Number(category_id),
       measureUnid_id: Number(measureUnid_id),
+      additional,
       visibleApp: format.isboolean(visibleApp),
     };
     // Excluir o arquivo do produto antigo
     if (pathFileOld !== null) {
       if (fs.existsSync(pathFileOld)) {
-        dataProductOld.image !== "default.png" && fs.unlinkSync(pathFileOld);
+        dataProductOld.image !== "default.jpg" && fs.unlinkSync(pathFileOld);
       }
     }
 

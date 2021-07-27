@@ -53,7 +53,7 @@ router.post("/create", upload.single("image"), async (req, res) => {
   if (!!requestImage) {
     pathImage = requestImage.filename;
   } else {
-    pathImage = "default.png";
+    pathImage = "default.jpg";
   }
 
   try {
@@ -63,14 +63,19 @@ router.post("/create", upload.single("image"), async (req, res) => {
       image: pathImage,
     };
     // Inserir categoria
-    await trx("category").insert(categoryData);
+    const categoryId = await trx("category").insert(categoryData, "id");
     await trx.commit();
 
     req.io.emit("Update", { update: categoryData });
 
-    return res.json({ Message: "success", categoryData });
+    return res.json({
+      categoryId: categoryId[0],
+      TotalProduct: 0,
+      name: categoryData.name,
+      image_url: `${process.env.HOST}/uploads/${categoryData.image}`,
+    });
   } catch (error) {
-    return res.json({ Message: "Erro", typeErro: error });
+    return res.json({ error: error.message });
   }
 });
 // Excluir uma categoria
@@ -142,7 +147,7 @@ router.put("/:id", upload.single("image"), async (req, res) => {
 
     return res.json({ message: "Atualização realizada com sucesso" });
   } catch (error) {
-    return res.json({ Message: "Erro", typeErro: error });
+    return res.json({ message: "Erro", typeErro: error });
   }
 });
 

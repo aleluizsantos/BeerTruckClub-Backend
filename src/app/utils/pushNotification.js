@@ -5,7 +5,7 @@ const pushNotification = async (token, msg) => {
   const message = {
     to: token,
     sound: "default",
-    title: "Casa Carne Premium 🍗",
+    title: "Beer Truck Club 🍔",
     body: msg,
   };
 

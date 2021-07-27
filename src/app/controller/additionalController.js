@@ -6,10 +6,24 @@ const Yup = require("yup");
 const router = express.Router();
 
 router.get("/", async (req, res) => {
+  const { additional } = req.headers;
+  // Transformar a lista de String em array
+  const listAdditional = additional.split(",");
   try {
     const additional = await connection("additional")
-      .select("*")
-      .orderBy("description", "asc");
+      .whereIn("additional.typeAdditional_id", listAdditional)
+      .join(
+        "typeAdditional",
+        "additional.typeAdditional_id",
+        "typeAdditional.id"
+      )
+      .orderBy("typeAdditional_id", "asc")
+      .orderBy("description", "asc")
+      .select(
+        "additional.*",
+        "typeAdditional.description as typeAdditional",
+        "typeAdditional.manySelected"
+      );
     return res.json(additional);
   } catch (error) {
     return res.json({ error: error.message });
@@ -19,13 +33,15 @@ router.get("/", async (req, res) => {
 router.use(authMiddleware);
 
 router.post("/create", async (req, res) => {
-  const { description, price } = req.body;
+  const { description, price, typeAdditional_id } = req.body;
+
   const schema = Yup.object().shape({
     description: Yup.string().required(),
     price: Yup.number().required(),
+    typeAdditional_id: Yup.number().required(),
   });
 
-  const additional = { description, price };
+  const additional = { description, price, typeAdditional_id };
 
   if (!schema.isValidSync(additional))
     return res.json({ error: "Validation data" });

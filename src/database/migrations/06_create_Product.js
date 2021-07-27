@@ -7,7 +7,7 @@ exports.up = async function (knex) {
     table.decimal("price", 6, 2).notNullable();
     table.string("image");
     table.boolean("promotion").defaultTo(false);
-    table.boolean("additional").defaultTo(false);
+    table.string("additional").nullable();
     table.decimal("pricePromotion", 6, 2).defaultTo(0);
 
     table.boolean("visibleApp").defaultTo(true);

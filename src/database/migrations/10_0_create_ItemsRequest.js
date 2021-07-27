@@ -6,10 +6,18 @@ exports.up = async function (knex) {
     table.string("note").nullable();
 
     table.integer("product_id").notNullable();
-    table.foreign("product_id").references("id").inTable("product");
+    table
+      .foreign("product_id")
+      .references("id")
+      .inTable("product")
+      .onDelete("CASCADE");
 
     table.integer("request_id").notNullable();
-    table.foreign("request_id").references("id").inTable("request");
+    table
+      .foreign("request_id")
+      .references("id")
+      .inTable("request")
+      .onDelete("CASCADE");
   });
 };
 

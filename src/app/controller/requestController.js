@@ -1,7 +1,7 @@
 const connection = require("../../database/connection");
 const express = require("express");
 const authMiddleware = require("../middleware/auth");
-const { ValidationCoupon } = require("../utils/validationCupon");
+const { validationCoupon } = require("../utils/validationCupon");
 const { pushNotificationUser } = require("../utils/pushNotification");
 
 const router = express.Router();
@@ -118,7 +118,6 @@ router.get("/items", async (req, res) => {
 
   return res.json(dataItemRequest);
 });
-
 router.get("/group", async (req, res) => {
   try {
     const statusRequest = await connection("request")
@@ -131,11 +130,10 @@ router.get("/group", async (req, res) => {
     return res.status(500).json({ error: "Erro no servidor." });
   }
 });
-
 // Criar um pedido
 // http://dominio/request
 router.post("/create", async (req, res) => {
-  const dataCurrent = new Date();
+  const dataCurrent = new Date(); //Data atual
   const user_id = req.userId; //Id do usuário recebido no token;
 
   // Dados recebidos na requisição no body
@@ -156,8 +154,6 @@ router.post("/create", async (req, res) => {
     items, //recebendo um ARRAY de objetos de items do pedido e addicionais
   } = req.body;
 
-  // Iniciado o desconto com zero, alterado se o cliente passou um cupom valido com desconto
-  let discount = 0;
   try {
     // Verificar no banco de dados se os valor dos item estão corretos
     // se não houve manipulação do frontend para backend
@@ -177,6 +173,7 @@ router.post("/create", async (req, res) => {
           amount: Number(item.amount),
           product_id: Number(item.product_id),
           price: priceProduct,
+          note: item.note,
         };
       })
     );
@@ -186,16 +183,12 @@ router.post("/create", async (req, res) => {
       return total + Number(item.amount) * Number(item.price);
     }, 0);
 
-    // Checando a taxa de entrega
-    const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
-    // Checar se o total gasto é maior ou igual a taxa minima de entrega
-    const vTaxaDelivery = totalPur >= vMinTaxa ? 0 : parseFloat(taxa);
+    let vDiscount = 0;
 
     //Verificação do cupom, autenticidade e validade
     if (coupon !== "") {
-      const vcoupon = await ValidationCoupon(coupon, payment_id);
-      if (vcoupon.Success)
-        discount = Number(vcoupon.Coupon.discountAmount) / 100;
+      const vcoupon = await validationCoupon(coupon);
+      vDiscount = vcoupon.error ? 0 : Number(vcoupon.discountAmount);
     }
 
     //Converter a string que contém o itens adicionais
@@ -215,15 +208,20 @@ router.post("/create", async (req, res) => {
       .first();
 
     // Acrescentar o total dos adicionais
-    totalPur = totalPur + Number(totalAdditional.total);
+    totalPur += Number(totalAdditional.total);
+
+    // Checando a taxa de entrega
+    const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
+    // Checar se o total gasto é maior ou igual a taxa minima de entrega
+    const vTaxaDelivery = totalPur >= vMinTaxa ? 0 : parseFloat(taxa);
 
     // montar os dados do pedido para ser inseridos
     const request = {
       dateTimeOrder: dataCurrent,
-      totalPurchase: vTaxaDelivery + totalPur - totalPur * discount,
+      totalPurchase: vTaxaDelivery + totalPur - vDiscount,
       vTaxaDelivery: vTaxaDelivery,
       coupon,
-      discount,
+      discount: vDiscount,
       note,
       address,
       number,
@@ -236,7 +234,7 @@ router.post("/create", async (req, res) => {
       statusRequest_id: Number(statusRequest_id),
       payment_id: Number(payment_id),
       cash: cash || 0,
-      timeDelivery: timeDelivery || "15 à 50 min",
+      timeDelivery: timeDelivery || "60-80 min",
     };
 
     const trx = await connection.transaction();
@@ -249,6 +247,7 @@ router.post("/create", async (req, res) => {
       return {
         amount: Number(item.amount),
         price: Number(item.price),
+        note: item.note,
         product_id: Number(item.product_id),
         request_id: Number(request_id),
       };
@@ -312,105 +311,61 @@ router.post("/item", async (req, res) => {
 
   // Inserir o novo item
   await connection("itemsRequets").insert(newItemRequest);
-
-  // Recalcular o total do pedido apos o item excluido
-  const itemsRequest = await connection("itemsRequets")
-    .where("request_id", "=", request_id)
-    .join("product", "itemsRequets.product_id", "product.id")
-    .join("measureUnid", "product.measureUnid_id", "measureUnid.id")
-    .select(
-      "itemsRequets.*",
-      "product.name",
-      "measureUnid.unid as measureUnid"
-    );
-
-  // Calcular o total do carrinho
-  const totalPur = await itemsRequest.reduce(function (total, item) {
-    return total + Number(item.amount) * Number(item.price);
-  }, 0);
-
-  // Checando a taxa de entrega
-  const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
-  // Checar se o total gasto é maior ou igual a taxa minima de entrega
-  const vTaxaDelivery = totalPur >= vMinTaxa ? 0 : parseFloat(taxa);
-
-  // Buscar todos os dados do pedido
-  const orders = await connection("request")
-    .where("id", "=", request_id)
-    .first();
-
-  // Alterar os dados necessário do pedido apos exclusão do item
-  const data = {
-    ...orders,
-    totalPurchase:
-      totalPur + vTaxaDelivery - totalPur * Number(orders.discount),
-    vTaxaDelivery: vTaxaDelivery,
-  };
-
+  // Calcular o novo valor do pedido após incluir um item
+  const result = await calcMyOrder(request_id);
   // Atualizar o pedido com o novo valor
-  await connection("request").where("id", "=", request_id).update(data);
-
-  return res.json({ order: data, items: itemsRequest });
+  await connection("request")
+    .where("id", "=", request_id)
+    .update(result.dataOrder);
+  // Retornar o pedido completo
+  return res.json(result);
 });
-
 // Alterar quantidade dos itens do pedido após a preparação
 router.put("/itemChanger", async (req, res) => {
   let changerAmount = false;
 
-  const { request_id, items, taxaDelivery, totalPurchase, user_id } = req.body;
+  const { myOrder, items } = req.body;
+
   try {
     // Altarar a Tabela pedido 'request'
-    await connection("request").where("id", "=", request_id).update({
-      vTaxaDelivery: taxaDelivery,
-      totalPurchase: totalPurchase,
+    await connection("request").where("id", "=", myOrder.id).update({
+      vTaxaDelivery: myOrder.taxaDelivery,
+      totalPurchase: myOrder.totalPurchase,
+      discount: myOrder.discount,
     });
 
     // Buscar todos os item do pedido
-    const itemRequest = await connection("itemsRequets")
-      .where("request_id", "=", request_id)
+    const itemCurrent = await connection("itemsRequets")
+      .where("request_id", "=", myOrder.id)
       .select("*");
 
     // Percorrer todo array da Tabela itemPedido checando se houve alteração na quantidade
-    itemRequest.forEach(async (item) => {
+    itemCurrent.forEach(async (itemCurrent) => {
       const changeItem = items.find(
-        (itemChange) => itemChange.product_id === item.product_id
+        (itemChange) => itemChange.product_id === itemCurrent.product_id
       );
-      if (Number(item.amount) !== Number(changeItem.amount)) {
+      if (Number(itemCurrent.amount) !== Number(changeItem.amount)) {
         changerAmount = true;
         //Atualizar com a nova quantidade na tabela item do pedido
         await connection("itemsRequets")
-          .where("id", "=", item.id)
+          .where("id", "=", itemCurrent.id)
           .update({ amount: changeItem.amount });
-
-        // Ajustar o Estoque
-        const product = await connection("product")
-          .where("id", "=", item.product_id)
-          .first();
-        // Checar a diferença da quantidade
-        const difAmount = Number(changeItem.amount) - Number(item.amount);
-        // Calcular novo estoque
-        const stock = Number(product.inventory) - difAmount;
-
-        // Atualiza a tabela produto com o novo estoque
-        await connection("product").where("id", "=", item.product_id).update({
-          inventory: stock,
-        });
       }
     });
 
     // Checar se houve alteraçaõ na quantidade notificar cliente
     if (changerAmount)
       pushNotificationUser(
-        user_id,
-        "Seus produtos foram pesados, verifique em seu aplicativo o pesos reais"
+        myOrder.user_id,
+        "Houve alteração em seu pedido, verifique as alterações em seu app."
       );
 
     return res.status(200).json(true);
   } catch (error) {
+    console.log(error.message);
     return res.json({ error: error.message });
   }
 });
-
 // Alterar Status de um Pedido pedido
 // http://dominio/request/:id
 router.put("/:id", async (req, res) => {
@@ -488,115 +443,127 @@ router.put("/:id", async (req, res) => {
     descriptionNextActionRequest: descriptionNextActionRequest,
   });
 });
-
-//Excluir um pedido
+// Excluir um pedido
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    // Ajustar o Estoque retornar produto para estoque
-    const itemsMyOrder = await connection("itemsRequets")
-      .where("request_id", "=", id)
-      .select("*");
-    // Percorrer todo o item do pedido retornado a quantidade para o estoque
-    itemsMyOrder.forEach(async (item) => {
-      // Buscar os dados do produto
-      const product = await connection("product")
-        .where("id", "=", item.product_id)
-        .first();
-      // calcular novo estoque
-      const stock = Number(product.inventory) + Number(item.amount);
-      // Atualizar estoque
-      await connection("product").where("id", "=", item.product_id).update({
-        inventory: stock,
-      });
-    });
-
-    // Excluir todos os items do pedidos
-    await connection("itemsRequets").where("request_id", "=", id).delete();
     // Excluir o pedido
-    const myOrder = await connection("request").where("id", "=", id).delete();
+    const isDelete = await connection("request").where("id", "=", id).delete();
 
-    return res.json({ success: !!myOrder });
+    return res.json({ success: Boolean(isDelete) });
   } catch (error) {
-    return res.json(error.message);
+    return res.json({ error: error.message });
   }
 });
-//Excluir um item do pedido
-router.delete("/item/:id", async (req, res) => {
-  const { id } = req.params; //id do item para ser excluido
+// Excluir um item do pedido
+router.delete("/item/:idItem", async (req, res) => {
+  const { idItem } = req.params; //id do item para ser excluido
   const { request_id } = req.headers; //id do pedido
 
   try {
-    // Ajustar o estoque
-    const item = await connection("itemsRequets").where("id", "=", id).first();
-    const product = await connection("product")
-      .where("id", "=", item.product_id)
-      .first();
-    const stock = Number(product.inventory) + Number(item.amount);
-    await connection("product").where("id", "=", item.product_id).update({
-      inventory: stock,
-    });
     // Exluir o item do pedido
-    const isDelete = await connection("itemsRequets")
-      .where("id", "=", id)
+    await connection("itemsRequets")
+      .where("id", "=", idItem)
       .where("request_id", "=", request_id)
       .delete();
 
-    if (!!isDelete) {
-      // Recalcular o total do pedido apos o item excluido
-      const itemsRequest = await connection("itemsRequets")
-        .where("request_id", "=", request_id)
-        .select("*");
+    // Calcular o nova valor do pedido e retorna o pedido completo
+    const result = await calcMyOrder(request_id);
 
-      // Calcular o total do carrinho
-      const totalPur = await itemsRequest.reduce(function (total, item) {
-        return total + Number(item.amount) * Number(item.price);
-      }, 0);
+    // Atualizar o pedido com o novo valor após excluir o item
+    await connection("request")
+      .where("id", "=", request_id)
+      .update(result.dataOrder);
 
-      // Checando a taxa de entrega
-      const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
-      // Checar se o total gasto é maior ou igual a taxa minima de entrega
-      const vTaxaDelivery = totalPur >= vMinTaxa ? 0 : parseFloat(taxa);
-
-      // Buscar todos os dados do pedido
-      const orders = await connection("request")
-        .where("id", "=", request_id)
-        .first();
-
-      // Alterar os dados necessário do pedido apos exclusão do item
-      const data = {
-        ...orders,
-        totalPurchase:
-          totalPur + vTaxaDelivery - totalPur * Number(orders.discount),
-        vTaxaDelivery: vTaxaDelivery,
-      };
-
-      // Atualizar o pedido com o novo valor
-      await connection("request").where("id", "=", request_id).update(data);
-
-      return res.json(data);
-    } else {
-      return res.json({
-        error:
-          "Você não tem permissão para excluir este item ou o item não existe.",
-      });
-    }
+    return res.json(result);
   } catch (error) {
     return res.json({ error: error.message });
   }
 });
 
-function upgradeStoreProduct(itemsOrder) {
-  itemsOrder.map(async (item) => {
-    const product = await connection("product")
-      .where("id", "=", item.product_id)
-      .first();
+//Calcular o valor do pedido
+async function calcMyOrder(request_id) {
+  let grandTotal = 0;
+  let totalPurchase = 0;
+  let totalAdditional = 0;
+  let vTaxaDelivery = 0;
+  let vDiscount = 0;
 
-    const stock = Number(product.inventory) - Number(item.amount);
-    await connection("product").where("id", "=", item.product_id).update({
-      inventory: stock,
-    });
+  // Buscar todos os dados do Pedido
+  const order = await connection("request")
+    .where("id", "=", request_id)
+    .first();
+
+  //Verificação do cupom, autenticidade e validade
+  if (order.coupon) {
+    const coupon = await validationCoupon(order.coupon);
+    // Se possui um coupon válido setar o valor senão seta ZERO
+    vDiscount = coupon.error ? 0 : Number(coupon.discountAmount);
+  }
+
+  // Buscar Valor minimo do pedido e o valor da Taxa de entrega
+  const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
+
+  // Buscar todos os item do pedido
+  const itemsMyOrder = await connection("itemsRequets")
+    .where("request_id", "=", request_id)
+    .join("product", "itemsRequets.product_id", "product.id")
+    .join("measureUnid", "product.measureUnid_id", "measureUnid.id")
+    .select(
+      "itemsRequets.*",
+      "product.name",
+      "measureUnid.unid as measureUnid"
+    );
+  // Buscar todos os addicionais do pedido
+  const additionalItem = await connection("additionalItemOrder")
+    .where("request_id", "=", request_id)
+    .join("additional", "additionalItemOrder.additional_id", "additional.id")
+    .select(
+      "additionalItemOrder.*",
+      "additional.description",
+      "additional.price"
+    );
+  // Juntar os adicionais com seus respectivos items do pedido
+  const joinData = itemsMyOrder.map((item) => {
+    const addit = additionalItem.filter(
+      (addit) => addit.itemOrder_id === item.id
+    );
+    return { ...item, additional: addit };
   });
+
+  // Calcular o valor do pedido
+  joinData.forEach((element) => {
+    totalPurchase += element.amount * element.price;
+    totalAdditional += element.additional.reduce(
+      (total, item) => total + element.amount * Number(item.price),
+      0
+    );
+  });
+
+  // Checar se o total gasto é maior ou igual a taxa minima de entrega
+  vTaxaDelivery =
+    totalPurchase + totalAdditional >= vMinTaxa ? 0 : parseFloat(taxa);
+
+  // Somando total Geral do pedido
+  grandTotal = totalPurchase + totalAdditional + vTaxaDelivery - vDiscount;
+
+  // Atualizar o TotalPurchase e o VTaxaDelivery após a alteração de um item
+  const dataOrder = {
+    ...order,
+    totalPurchase: grandTotal,
+    vTaxaDelivery,
+    discount: vDiscount,
+  };
+
+  return {
+    dataOrder,
+    items: joinData,
+    grandTotal,
+    totalPurchase,
+    totalAdditional,
+    vTaxaDelivery,
+    vDiscount,
+  };
 }
 
 module.exports = (app) => app.use("/request", router);

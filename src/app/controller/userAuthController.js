@@ -81,7 +81,10 @@ router.post("/authenticate", async (req, res) => {
     .count("id as countRequest")
     .first();
   // Quantidade de usuário no sistema
-  const totalUsers = await connection("users").count("id as countUser").first();
+  const totalUsers = await connection("users")
+    .where("typeUser", "=", "user")
+    .count("id as countUser")
+    .first();
 
   // Retorno caso password estive correto retorna usuário e token
   return res.send({
@@ -91,6 +94,7 @@ router.post("/authenticate", async (req, res) => {
       email: user.email,
       phone: user.phone,
       typeUser: user.typeUser,
+      tokenPushNotification: user.tokenPushNotification,
       blocked: user.blocked,
     },
     token: generateToken({ id: user.id }),
@@ -119,6 +123,7 @@ router.get("/checkToken/:token", async (req, res) => {
 // http:dominio/auth/users
 router.get("/users", async (req, res) => {
   const users = await connection("users")
+    .where("typeUser", "=", "user")
     .select(
       "users.id",
       "users.name",
@@ -170,25 +175,28 @@ router.get("/blocked/:id", async (req, res) => {
   const { id } = req.params;
   const user_id = req.userId; //Id do usuário recebido no token;
 
+  // Buscar dados do usuário
   const userAdm = await connection("users")
     .where("id", "=", user_id)
     .where("typeUser", "=", "admin")
     .first();
-
+  // Checar se o usuário é administrador
+  // caso negativo não pode desbloquear
   if (userAdm !== undefined) {
     const user = await connection("users")
       .where("id", "=", id)
       .select("blocked")
       .first();
-
-    const updateUser = await connection("users")
+    // Gravando as alterações no banco se usuário tive bloqueado
+    // será desbloqueado ou vice-versa
+    await connection("users")
       .where("id", "=", id)
       .update({ blocked: !user.blocked });
 
-    return res.json(updateUser);
+    return res.json(!user.blocked);
   } else {
     return res.json({
-      message: "Usuário não tem permissão para realizar esta ação.",
+      error: "Usuário não tem permissão para realizar esta ação.",
     });
   }
 });
@@ -214,7 +222,7 @@ router.delete("/userDelete/:id", async (req, res) => {
 router.put("/users/:id", async (req, res) => {
   const idUserLogin = req.userId;
   const { id } = req.params;
-  const { name, email, phone } = req.body;
+  const { name, email, phone, tokenPushNotification } = req.body;
   let statusUpgrade = false;
 
   try {
@@ -222,7 +230,7 @@ router.put("/users/:id", async (req, res) => {
     if (Number(idUserLogin) === Number(id)) {
       await connection("users")
         .where("id", "=", id)
-        .update({ name, email, phone });
+        .update({ name, email, phone, tokenPushNotification });
       statusUpgrade = true;
     }
 

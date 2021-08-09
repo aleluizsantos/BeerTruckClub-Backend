@@ -10,7 +10,16 @@ router.get("/", async (req, res) => {
   const payment = await connection("payment")
     .where("active", "=", true)
     .select("*");
-  return res.json(payment);
+
+  const serialezePayment = payment.map((pay) => {
+    return {
+      id: pay.id,
+      type: pay.type,
+      image_url: `${process.env.HOST}/uploads/${pay.image}`,
+    };
+  });
+
+  return res.json(serialezePayment);
 });
 // Listar todas tipos de pagamentos ativos e desativados
 // http://dominio/payment/all

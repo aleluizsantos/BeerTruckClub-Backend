@@ -433,7 +433,10 @@ router.put("/:id", async (req, res) => {
       statusRequest_id: nextActionRequest,
     });
 
+  // Enviar pushNotification  par ao usuário
   pushNotificationUser(user_id, message);
+  // Enviar notificação via socket-io
+  req.io.emit("Update", { update: Date.now(), userId: user_id });
 
   return res.status(200).json({
     success: Boolean(upgradeRequest),

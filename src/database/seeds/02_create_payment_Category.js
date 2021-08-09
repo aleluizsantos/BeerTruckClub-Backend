@@ -4,7 +4,6 @@ exports.seed = async function (knex) {
     { type: "Visa", active: 1, image: "icoVisa.png" },
     { type: "Master Card", active: 1, image: "icoMast.png" },
     { type: "Elo", active: 1, image: "icoElo.png" },
-    { type: "Diners", active: 1, image: "icoDiners.png" },
     { type: "American Express", active: 1, image: "icoAEx.png" },
   ]);
 

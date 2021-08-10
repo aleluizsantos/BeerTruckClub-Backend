@@ -124,6 +124,8 @@ router.get("/checkToken/:token", async (req, res) => {
 router.get("/users", async (req, res) => {
   const users = await connection("users")
     .where("typeUser", "=", "user")
+    .join("addressUser", "users.id", "addressUser.user_id")
+    .where("addressUser.active", "=", true)
     .select(
       "users.id",
       "users.name",
@@ -133,7 +135,11 @@ router.get("/users", async (req, res) => {
       "users.passwordResetExpires",
       "users.typeUser",
       "users.blocked",
-      "users.created_at"
+      "users.created_at",
+      "addressUser.address",
+      "addressUser.number",
+      "addressUser.neighborhood",
+      "addressUser.city"
     )
     .orderBy("name", "asc");
 

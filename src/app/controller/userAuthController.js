@@ -135,6 +135,7 @@ router.get("/users", async (req, res) => {
       "users.passwordResetExpires",
       "users.typeUser",
       "users.blocked",
+      "users.tokenPushNotification",
       "users.created_at",
       "addressUser.address",
       "addressUser.number",

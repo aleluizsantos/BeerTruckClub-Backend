@@ -8,6 +8,69 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
+// Listar itens de um pedido
+// http://dominio/request/items
+router.get("/items", async (req, res) => {
+  const { request_id } = req.headers; //Id do pedido;
+
+  if (!Boolean(request_id))
+    return res.json({ error: "Falta do parametro 'request_id'" });
+
+  // Buscar a taxa de delivery
+  const taxaDelivery = await connection("taxaDelivery").select("*").first();
+  // Buscar todos os items do pedidos
+  const itemsRequest = await connection("itemsRequets")
+    .where("request_id", "=", request_id)
+    .join("product", "itemsRequets.product_id", "product.id")
+    .join("measureUnid", "product.measureUnid_id", "measureUnid.id")
+    .select(
+      "itemsRequets.*",
+      "product.name",
+      "measureUnid.unid as measureUnid"
+    );
+
+  // Buscar todos os adicionais do pedido
+  const additionalItemOrder = await connection("additionalItemOrder")
+    .where("request_id", "=", request_id)
+    .join("additional", "additionalItemOrder.additional_id", "additional.id")
+    .select(
+      "additionalItemOrder.*",
+      "additional.description",
+      "additional.price"
+    );
+
+  // Juntar os items do pedido com os adicionais
+  const itemsWithAdditional = itemsRequest.map((item) => {
+    const addit = additionalItemOrder.filter(
+      (additItem) => additItem.itemOrder_id === item.id
+    );
+    return {
+      ...item,
+      additional: addit,
+    };
+  });
+
+  const dataItemRequest = {
+    itemsRequest: itemsWithAdditional,
+    taxaDelivery: taxaDelivery,
+  };
+
+  return res.json(dataItemRequest);
+});
+// Lista todos tipos de status de pedido, e informa quantos pedidos tem
+// neste status
+router.get("/group", async (req, res) => {
+  try {
+    const statusRequest = await connection("request")
+      .groupBy("statusRequest_id", "statusRequest.description")
+      .count("statusRequest_id as TotalStatus")
+      .join("statusRequest", "request.statusRequest_id", "statusRequest.id")
+      .select("request.statusRequest_id", "statusRequest.description");
+    return res.status(200).json(statusRequest);
+  } catch (error) {
+    return res.status(500).json({ error: "Erro no servidor." });
+  }
+});
 // Listar todos os pedidos especifico de um usuário
 // http://dominio/request
 router.get("/", async (req, res) => {
@@ -67,67 +130,6 @@ router.get("/", async (req, res) => {
       .orderBy("request.id", "desc");
 
     return res.json(request);
-  }
-});
-// Listar itens de um pedido
-// http://dominio/request/items
-router.get("/items", async (req, res) => {
-  const { request_id } = req.headers; //Id do pedido;
-
-  if (!!!request_id)
-    return res.json({ Message: "Falta do parametro HEADERS -> 'Request_id'" });
-
-  const taxaDelivery = await connection("taxaDelivery").select("*").first();
-
-  // Buscar todos os items do pedidos
-  const itemsRequest = await connection("itemsRequets")
-    .where("request_id", "=", request_id)
-    .join("product", "itemsRequets.product_id", "product.id")
-    .join("measureUnid", "product.measureUnid_id", "measureUnid.id")
-    .select(
-      "itemsRequets.*",
-      "product.name",
-      "measureUnid.unid as measureUnid"
-    );
-
-  // Buscar todos os adicionais do pedido
-  const additionalItemOrder = await connection("additionalItemOrder")
-    .where("request_id", "=", request_id)
-    .join("additional", "additionalItemOrder.additional_id", "additional.id")
-    .select(
-      "additionalItemOrder.*",
-      "additional.description",
-      "additional.price"
-    );
-
-  // Juntar os items do pedido com os adicionais
-  const itemsWithAdditional = itemsRequest.map((item) => {
-    const addit = additionalItemOrder.filter(
-      (additItem) => additItem.itemOrder_id === item.id
-    );
-    return {
-      ...item,
-      additional: addit,
-    };
-  });
-
-  const dataItemRequest = {
-    itemsRequest: itemsWithAdditional,
-    taxaDelivery: taxaDelivery,
-  };
-
-  return res.json(dataItemRequest);
-});
-router.get("/group", async (req, res) => {
-  try {
-    const statusRequest = await connection("request")
-      .groupBy("statusRequest_id", "statusRequest.description")
-      .count("statusRequest_id as TotalStatus")
-      .join("statusRequest", "request.statusRequest_id", "statusRequest.id")
-      .select("request.statusRequest_id", "statusRequest.description");
-    return res.status(200).json(statusRequest);
-  } catch (error) {
-    return res.status(500).json({ error: "Erro no servidor." });
   }
 });
 // Criar um pedido
@@ -483,7 +485,6 @@ router.delete("/item/:idItem", async (req, res) => {
     return res.json({ error: error.message });
   }
 });
-
 //Calcular o valor do pedido
 async function calcMyOrder(request_id) {
   let grandTotal = 0;

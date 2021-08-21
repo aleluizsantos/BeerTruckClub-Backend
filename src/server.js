@@ -6,8 +6,10 @@ const cors = require("cors");
 require("dotenv").config();
 
 const errorHandler = require("./errors/handler");
-
 const app = express();
+
+const { NODE_INSTANCE } = process.env;
+const PORT = 3333 + parseInt(NODE_INSTANCE);
 
 //Fazer com que a aplicação ousa tanto o protocolo http quanto socket
 const server = require("http").Server(app);
@@ -30,7 +32,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 //e coloca na aplicação
 require("./app/controller/index")(app);
 
-server.listen(process.env.PORT || 3333, function () {
+server.listen(PORT, function () {
   console.log("..::Servidor online::..");
 });
 

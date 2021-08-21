@@ -32,7 +32,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 //e coloca na aplicação
 require("./app/controller/index")(app);
 
-server.listen(PORT, function () {
+server.listen(process.env.PORT || PORT, function () {
   console.log("..::Servidor online::..");
 });
 

@@ -10,17 +10,17 @@ router.use(authMiddleware);
 
 // Listar itens de um pedido
 // http://dominio/request/items
-router.get("/items", async (req, res) => {
-  const { request_id } = req.headers; //Id do pedido;
+router.get("/items/:id", async (req, res) => {
+  const { id } = req.params; //Id do pedido;
 
-  if (!Boolean(request_id))
-    return res.json({ error: "Falta do parametro 'request_id'" });
+  if (!Boolean(id))
+    return res.json({ error: "Falta do parametro 'id' do pedido" });
 
   // Buscar a taxa de delivery
   const taxaDelivery = await connection("taxaDelivery").select("*").first();
   // Buscar todos os items do pedidos
   const itemsRequest = await connection("itemsRequets")
-    .where("request_id", "=", request_id)
+    .where("request_id", "=", id)
     .join("product", "itemsRequets.product_id", "product.id")
     .join("measureUnid", "product.measureUnid_id", "measureUnid.id")
     .select(
@@ -31,7 +31,7 @@ router.get("/items", async (req, res) => {
 
   // Buscar todos os adicionais do pedido
   const additionalItemOrder = await connection("additionalItemOrder")
-    .where("request_id", "=", request_id)
+    .where("request_id", "=", id)
     .join("additional", "additionalItemOrder.additional_id", "additional.id")
     .select(
       "additionalItemOrder.*",

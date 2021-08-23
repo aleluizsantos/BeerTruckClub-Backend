@@ -104,6 +104,9 @@ router.put("/visible/:name", async (req, res) => {
     categoryVisible: !category.categoryVisible,
   });
 
+  // Emimitr sinal de atualização no banco novo produto
+  req.io.emit("Update", { update: Date.now() });
+
   return res.json({ success: Boolean(upgrade) });
 });
 // Atualizar uma categoria

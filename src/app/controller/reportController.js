@@ -13,7 +13,10 @@ router.use(authMiddleware);
  * @returns
  */
 router.get("/saleDay", async (req, res) => {
-  let dateNow = new Date();
+  const dateUTC = new Date();
+  let dateNow = new Date(
+    dateUTC.valueOf() - dateUTC.getTimezoneOffset() * 60000
+  );
 
   // formatar data no formato ISO 8601
   let dateStart = dateNow.getFullYear().toString() + "-";
@@ -46,7 +49,8 @@ router.get("/saleDay", async (req, res) => {
  * @returns Array total vendas por semana [dom, ... , sab]
  */
 router.get("/saleWeek", async (req, res) => {
-  const now = new Date();
+  const dateUTC = new Date();
+  const now = new Date(dateUTC.valueOf() - dateUTC.getTimezoneOffset() * 60000);
 
   // Verificar o dia da semana 0=Domingo, ... ,  6=Sabado
   const isDateWeek = now.getDay();
@@ -102,15 +106,18 @@ router.get("/saleWeek", async (req, res) => {
     }
   });
 
-  return res.json([
-    totalSun,
-    totalMon,
-    totalTue,
-    totalWed,
-    totalThu,
-    totalFri,
-    totalSat,
-  ]);
+  return res.json({
+    interval: { dateStart, dateEnd },
+    data: [
+      totalSun,
+      totalMon,
+      totalTue,
+      totalWed,
+      totalThu,
+      totalFri,
+      totalSat,
+    ],
+  });
 });
 
 /**

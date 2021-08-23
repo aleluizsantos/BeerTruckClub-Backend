@@ -448,6 +448,30 @@ router.put("/:id", async (req, res) => {
     descriptionNextActionRequest: descriptionNextActionRequest,
   });
 });
+// Excluir um item do pedido
+router.delete("/delete/item/:requestId/:itemId", async (req, res) => {
+  const { requestId, itemId } = req.params;
+
+  try {
+    // Exluir o item do pedido
+    await connection("itemsRequets")
+      .where("id", "=", itemId)
+      .where("request_id", "=", requestId)
+      .delete();
+
+    // Calcular o nova valor do pedido e retorna o pedido completo
+    const result = await calcMyOrder(requestId);
+
+    // Atualizar o pedido com o novo valor após excluir o item
+    await connection("request")
+      .where("id", "=", requestId)
+      .update(result.dataOrder);
+
+    return res.json(result);
+  } catch (error) {
+    return res.json({ error: error.message });
+  }
+});
 // Excluir um pedido
 router.delete("/:id", async (req, res) => {
   try {
@@ -456,31 +480,6 @@ router.delete("/:id", async (req, res) => {
     const isDelete = await connection("request").where("id", "=", id).delete();
 
     return res.json({ success: Boolean(isDelete) });
-  } catch (error) {
-    return res.json({ error: error.message });
-  }
-});
-// Excluir um item do pedido
-router.delete("/item/:idItem", async (req, res) => {
-  const { idItem } = req.params; //id do item para ser excluido
-  const { request_id } = req.headers; //id do pedido
-
-  try {
-    // Exluir o item do pedido
-    await connection("itemsRequets")
-      .where("id", "=", idItem)
-      .where("request_id", "=", request_id)
-      .delete();
-
-    // Calcular o nova valor do pedido e retorna o pedido completo
-    const result = await calcMyOrder(request_id);
-
-    // Atualizar o pedido com o novo valor após excluir o item
-    await connection("request")
-      .where("id", "=", request_id)
-      .update(result.dataOrder);
-
-    return res.json(result);
   } catch (error) {
     return res.json({ error: error.message });
   }

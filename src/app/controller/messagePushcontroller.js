@@ -9,7 +9,7 @@ router.use(authMiddlerare);
 // Enviar Notificação
 router.post("/send", async (req, res) => {
   // Receber o array de token de usuers
-  const { tokenPush, message } = req.body;
+  const { tokenPush, message, title } = req.body;
   // Schema de validadeção de dados
   const schema = Yup.object().shape({
     tokenPush: Yup.array().required(),
@@ -20,7 +20,7 @@ router.post("/send", async (req, res) => {
     return res.json({ error: "Parametros incorretos." });
   }
   // Enviar para notificação push
-  pushNotificationGruop(tokenPush, message);
+  pushNotificationGruop(tokenPush, title, message);
   return res.send();
 });
 

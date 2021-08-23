@@ -38,13 +38,14 @@ server.listen(process.env.PORT || PORT, function () {
 
 let clients = [];
 io.on("connection", function (socket) {
-  socket.on("join", function (data) {
-    !clients.includes(socket.id) && clients.push(socket.id);
-    socket.join(data.user_id);
-  });
-  // on disconnected, unregister
+  !clients.includes(socket.id) && clients.push(socket.id);
+  // socket.on("join", function (data) {
+  //   !clients.includes(socket.id) && clients.push(socket.id);
+  //   socket.join(data.user_id);
+  // });
   socket.on("disconnect", function () {
     clients = clients.filter((item) => item !== socket.id);
+    socket.broadcast.emit("onlineClients", clients.length);
   });
 
   socket.broadcast.emit("onlineClients", clients.length);

@@ -77,10 +77,10 @@ router.get("/saleWeek", async (req, res) => {
 
   const from = `${dateStart.getFullYear()}-${
     dateStart.getMonth() + 1
-  }-${dateStart.getDate()}T03:00:00.000Z`;
+  }-${dateStart.getDate()}T03:00:00.000`;
   const to = `${dateEnd.getFullYear()}-${dateEnd.getMonth() + 1}-${
     dateEnd.getDate() + 1
-  }T02:59:59.000Z`;
+  }T02:59:59.000`;
 
   const saleWeek = await connection("request")
     .whereBetween("dateTimeOrder", [from, to])

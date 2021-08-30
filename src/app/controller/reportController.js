@@ -9,23 +9,24 @@ router.use(authMiddleware);
 
 /**
  * Relatório de Vendas diárias
- * @param {} app
- * @returns
+ * @returns Object { saleDay, totalSaleDay }
  */
 router.get("/saleDay", async (req, res) => {
   const dateUTC = new Date();
-  let dateNow = new Date(
+
+  const from = new Date(
     dateUTC.valueOf() - dateUTC.getTimezoneOffset() * 60000
   );
+  const to = dateFns.addDays(from, 1);
 
   // formatar data no formato ISO 8601
-  let dateStart = dateNow.getFullYear().toString() + "-";
-  dateStart += (dateNow.getMonth() + 1).toString().padStart(2, "0") + "-";
-  dateStart += dateNow.getDate().toString().padStart(2, "0") + "T00:00:00";
+  let dateStart = from.getFullYear().toString() + "-";
+  dateStart += (from.getMonth() + 1).toString().padStart(2, "0") + "-";
+  dateStart += from.getDate().toString().padStart(2, "0") + "T03:00:00";
 
-  let dateEnd = dateNow.getFullYear().toString() + "-";
-  dateEnd += (dateNow.getMonth() + 1).toString().padStart(2, "0") + "-";
-  dateEnd += dateNow.getDate().toString().padStart(2, "0") + "T23:59:59";
+  let dateEnd = to.getFullYear().toString() + "-";
+  dateEnd += (to.getMonth() + 1).toString().padStart(2, "0") + "-";
+  dateEnd += to.getDate().toString().padStart(2, "0") + "T02:59:59";
 
   const saleDay = await connection("request")
     .where("dateTimeOrder", ">", dateStart)
@@ -45,23 +46,44 @@ router.get("/saleDay", async (req, res) => {
 
 /**
  * Relatório de Vendas Semana
- * @param {Date} Recebe a data base
+ * @param {Date} dateCurrent a data base
  * @returns Array total vendas por semana [dom, ... , sab]
  */
 router.get("/saleWeek", async (req, res) => {
+  const { dateCurrent } = req.query;
   const dateUTC = new Date();
-  const now = new Date(dateUTC.valueOf() - dateUTC.getTimezoneOffset() * 60000);
 
-  // Verificar o dia da semana 0=Domingo, ... ,  6=Sabado
-  const isDateWeek = now.getDay();
-  // Buscar o dia que inicia a semana
-  const dateStart = dateFns.subDays(now, Number(isDateWeek));
-  // Buscar o dia que termina a semana
-  const dateEnd = dateFns.addDays(now, 6 - Number(isDateWeek));
+  let now;
+
+  if (typeof dateCurrent === "undefined") {
+    now = new Date(dateUTC.valueOf() - dateUTC.getTimezoneOffset() * 60000);
+  } else {
+    now = new Date(dateCurrent);
+  }
+
+  // retorna o dia da semana para a data especificada de acordo
+  // com a hora local, onde 0 representa o Domingo, 1 segunda .....
+  const week = now.getDay();
+
+  // Buscar o dia que inicia a semana, configurado para iniciar a semanda
+  // na SEGUNDA-FEIRA e terminar no DOMINGO
+  // const dateStart = dateFns.subDays(now, Number(week));
+  const dateStart = dateFns.subDays(
+    now,
+    Number(week) === 0 ? 6 : Number(week - 1)
+  );
+  // Dia do termino da semana
+  const dateEnd = dateFns.addDays(dateStart, 6);
+
+  const from = `${dateStart.getFullYear()}-${
+    dateStart.getMonth() + 1
+  }-${dateStart.getDate()}T03:00:00.000Z`;
+  const to = `${dateEnd.getFullYear()}-${dateEnd.getMonth() + 1}-${
+    dateEnd.getDate() + 1
+  }T02:59:59.000Z`;
 
   const saleWeek = await connection("request")
-    .where("dateTimeOrder", ">=", dateStart)
-    .where("dateTimeOrder", "<=", dateEnd)
+    .whereBetween("dateTimeOrder", [from, to])
     .select("dateTimeOrder", "totalPurchase");
 
   // Somar vendas por semana
@@ -109,13 +131,13 @@ router.get("/saleWeek", async (req, res) => {
   return res.json({
     interval: { dateStart, dateEnd },
     data: [
-      totalSun,
       totalMon,
       totalTue,
       totalWed,
       totalThu,
       totalFri,
       totalSat,
+      totalSun,
     ],
   });
 });
@@ -129,8 +151,8 @@ router.get("/saleYear", async (req, res) => {
 
   const year = dateCurrent.getFullYear();
 
-  const dateStart = `${year}-01-01T00:00:00Z`;
-  const dateEnd = `${year}-12-31T23:59:59Z`;
+  const dateStart = `${year}-01-01T03:00:00`;
+  const dateEnd = `${year + 1}-01-01T02:59:59`;
 
   const saleYear = await connection("request")
     .where("dateTimeOrder", ">=", dateStart)

@@ -7,8 +7,18 @@ const router = express.Router();
 // Listar enderço da loja
 // http://dominio/addressStore
 router.get("/", async (req, res) => {
-  const addr = await connection("addressStore").select("*");
-  return res.json(addr);
+  const addr = await connection("addressStore").select("*").first();
+  const user = await connection("users")
+    .where("typeUser", "=", "admin")
+    .select("*")
+    .first();
+
+  const data = {
+    ...addr,
+    email: user.email,
+  };
+
+  return res.json(data);
 });
 
 router.use(authMiddleware);

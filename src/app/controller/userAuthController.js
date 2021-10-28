@@ -56,7 +56,7 @@ router.post("/register", async (req, res) => {
 // Autenticação de usuário
 // http://dominio/auth/authenticate
 router.post("/authenticate", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, exponentPushToken } = req.body;
 
   if (email === "" || password === "")
     return res.status(401).send({ error: "Email ou senha em branco" });
@@ -66,12 +66,22 @@ router.post("/authenticate", async (req, res) => {
     .select("*")
     .first();
   //Verificação se o usuário esta cadastrado
-  if (user === undefined)
+  if (typeof user === "undefined")
     return res.status(401).send({ error: "Usuário não cadastrado" });
 
   // Verificação se passoword esta correto
   if (!(await bcrypt.compare(password, user.password)))
     return res.status(401).send({ error: "Senha incorreta" });
+
+  // Verificar se o usuário logou em um novo dispositivo
+  if (user.tokenPushNotification !== exponentPushToken) {
+    await connection("users")
+      .where("email", "=", email)
+      .update({
+        ...user,
+        tokenPushNotification: exponentPushToken,
+      });
+  }
 
   // Open-Close
   const openClose = await connection("operation").first().select("open_close");
@@ -94,7 +104,7 @@ router.post("/authenticate", async (req, res) => {
       email: user.email,
       phone: user.phone,
       typeUser: user.typeUser,
-      tokenPushNotification: user.tokenPushNotification,
+      tokenPushNotification: exponentPushToken,
       blocked: user.blocked,
     },
     token: generateToken({ id: user.id }),

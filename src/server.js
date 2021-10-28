@@ -33,7 +33,7 @@ app.use("/uploads", express.static(path.resolve(__dirname, "..", "uploads")));
 require("./app/controller/index")(app);
 
 server.listen(process.env.PORT || PORT, function () {
-  console.log("..::Servidor online::..");
+  console.log(`[servidor] online in Port ${PORT}`);
 });
 
 let clients = [];

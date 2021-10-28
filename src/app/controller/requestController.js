@@ -171,16 +171,7 @@ router.post("/create", async (req, res) => {
           ? dataPrice.pricePromotion
           : dataPrice.price;
 
-        const idAdditional = item.additionItem
-          .split(",")
-          .map((id) => Number(id));
-        const totalAdditional = await connection("additional")
-          .whereIn("id", idAdditional)
-          .sum("price as total")
-          .first();
-
         return {
-          totalAdditional: totalAdditional.total,
           amount: Number(item.amount),
           product_id: Number(item.product_id),
           price: priceProduct,
@@ -191,11 +182,7 @@ router.post("/create", async (req, res) => {
 
     // Calcular o total do carrinho
     let totalPur = await dataItems.reduce(function (total, item) {
-      return (
-        total +
-        Number(item.amount) *
-          (Number(item.price) + Number(item.totalAdditional))
-      );
+      return total + Number(item.amount) * Number(item.price);
     }, 0);
 
     let vDiscount = 0;
@@ -211,6 +198,19 @@ router.post("/create", async (req, res) => {
       const additional = item.additionItem.split(",");
       return additional;
     });
+    // converter a String do additional em apenas um array
+    const listIdAdditional = itemsAdditional
+      .toString()
+      .split(",")
+      .map((item) => Number(item));
+
+    const totalAdditional = await connection("additional")
+      .whereIn("id", listIdAdditional)
+      .sum("price as total")
+      .first();
+
+    // Acrescentar o total dos adicionais
+    totalPur += Number(totalAdditional.total);
 
     // Checando a taxa de entrega
     const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
@@ -394,7 +394,7 @@ router.put("/:id", async (req, res) => {
     case 1:
       nextActionRequest = 2; // status 'EM PREPARAÇÃO'
       descriptionNextActionRequest = "Em Preparação";
-      message = "Seu pedido está preparação.";
+      message = "Pedido recebido em fila de preparação.";
       break;
     // Pedido em Preparação
     case 2:
@@ -408,7 +408,7 @@ router.put("/:id", async (req, res) => {
         // RETIRAR NA LOJA
         nextActionRequest = 4; // status 'RETIRAR NA LOJA'
         descriptionNextActionRequest = "Retirar na Loja";
-        message = "Seu pedido esta pronto para retirar na loja.";
+        message = "Pedido pronto para ser retirado na loja.";
       }
       break;
     // Entrega Realizada

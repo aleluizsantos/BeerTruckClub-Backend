@@ -267,7 +267,7 @@ router.get("/top10", async (req, res) => {
     .limit(10)
     .select("itemsRequets.product_id", "product.name");
 
-  const serialezerTop10Product = top10Product.map((item) => {
+  const serializeTop10Product = top10Product.map((item) => {
     return {
       ...item,
       amountProduct: parseInt(item.amountProduct),
@@ -283,6 +283,17 @@ router.get("/top10", async (req, res) => {
     .limit(10)
     .select("request.deliveryType_id", "deliveryType.description");
 
+  let labelTopDeliv = [];
+  let dataTopDeliv = [];
+  topDelivery.forEach((element) => {
+    labelTopDeliv.push(element.description);
+    dataTopDeliv.push(element.amountTypeDelivery);
+  });
+  const serializeTopDelivery = {
+    data: topDelivery,
+    graphic: { label: labelTopDeliv, data: dataTopDeliv },
+  };
+
   // Top Pagamentos | tipo de entrega
   const topPayDelivery = await connection("request")
     .groupBy("request.payment_id", "payment.type", "payment.image")
@@ -292,11 +303,22 @@ router.get("/top10", async (req, res) => {
     .limit(10)
     .select("request.payment_id", "payment.type", "payment.image");
 
+  let labelTopPayDeliv = [];
+  let dataTopPayDeliv = [];
+  topPayDelivery.forEach((element) => {
+    labelTopPayDeliv.push(element.type);
+    dataTopPayDeliv.push(element.amountPayDelivery);
+  });
+  const serializeTopPayDelivery = {
+    data: topPayDelivery,
+    graphic: { label: labelTopPayDeliv, data: dataTopPayDeliv },
+  };
+
   return res.status(200).json({
     top10Client: top10Client,
-    top10Product: serialezerTop10Product,
-    topDelivery: topDelivery,
-    topPayDelivery: topPayDelivery,
+    top10Product: serializeTop10Product,
+    topPayDelivery: serializeTopPayDelivery,
+    topDelivery: serializeTopDelivery,
   });
 });
 

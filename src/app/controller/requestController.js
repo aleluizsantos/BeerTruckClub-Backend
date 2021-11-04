@@ -140,7 +140,7 @@ router.post("/create", async (req, res) => {
 
   // Dados recebidos na requisição no body
   const {
-    deliveryType_id, // recebendo o id do tipo de entrega
+    deliveryType_id, // Tipo de entrega 1=Delivery 2=Retirada Loja
     statusRequest_id = 1, //Status do pedido inicia como 1 'EM ANALISE'
     payment_id, // recebendo o id do tipo de pagamento
     coupon, //recebendo o cupom se tiver
@@ -214,8 +214,14 @@ router.post("/create", async (req, res) => {
 
     // Checando a taxa de entrega
     const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
-    // Checar se o total gasto é maior ou igual a taxa minima de entrega
-    const vTaxaDelivery = totalPur >= vMinTaxa ? 0 : parseFloat(taxa);
+
+    // Verificar a taxa de entrega - Retirada na loja não existe taxa de entrega
+    let vTaxaDelivery = 0;
+    if (deliveryType_id === 1) {
+      //se for delivery verificar a taxa
+      vTaxaDelivery =
+        totalPur >= vMinTaxa && vMinTaxa === 0 ? 0 : parseFloat(taxa);
+    }
 
     // montar os dados do pedido para ser inseridos
     const request = {

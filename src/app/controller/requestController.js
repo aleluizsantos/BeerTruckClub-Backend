@@ -204,13 +204,20 @@ router.post("/create", async (req, res) => {
       .split(",")
       .map((item) => Number(item));
 
-    const totalAdditional = await connection("additional")
+    const dataAddicional = await connection("additional")
       .whereIn("id", listIdAdditional)
-      .sum("price as total")
-      .first();
+      .select("id", "price");
+
+    // Calcular o total de todos os adicionais
+    let sumAdditional = 0;
+    listIdAdditional.forEach((item) => {
+      const add = dataAddicional.find((add) => add.id === item);
+      // Somando todos adicionais que estão na lista
+      sumAdditional += Number(add.price);
+    });
 
     // Acrescentar o total dos adicionais
-    totalPur += Number(totalAdditional.total);
+    totalPur += Number(sumAdditional);
 
     // Checando a taxa de entrega
     const { vMinTaxa, taxa } = await connection("taxaDelivery").first();
